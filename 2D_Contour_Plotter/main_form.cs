@@ -200,8 +200,8 @@ namespace _2D_Contour_Plotter
             {
                 Position = AxisPosition.Right,
                 Palette = customPalette, // OxyPalettes.Rainbow(256),
-                HighColor = OxyColors.Gray, // Optional: handles values above range
-                LowColor = OxyColors.Black, // Optional: handles values below range
+                HighColor = OxyColors.Transparent, // Optional: handles values above range
+                LowColor = OxyColors.Transparent, // Optional: handles values below range
                 Title = result_type
             };
 
@@ -351,7 +351,6 @@ namespace _2D_Contour_Plotter
                     {
                         zi[i, j] = 0.0;
                     }
-
 
                 }
             }
