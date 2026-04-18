@@ -67,13 +67,12 @@ void app_window::init()
 	is_glwindow_success = true;
 
 	// Intialize tool windows
-	sim_window.init(); // Simulate window
 	op_window.init(); // Option window
 
 	geom.update_WindowDimension(window_width, window_height);
 	
 	// Initialize the geometry (initialize only after model window is initialized)
-	geom.init(&op_window, &sim_window);
+	geom.init(&op_window);
 
 	// Set the mouse button callback function with the user pointer pointing to the mouseHandler object
 	glfwSetWindowUserPointer(window, &mouse_Handler);
@@ -116,10 +115,10 @@ void app_window::init()
 	framebufferSizeCallback(window, window_width, window_height);
 }
 
-void app_window::set_system(double* system_data, double* mfunc_data, int solver_type)
+void app_window::set_system(std::ifstream& infile)
 {
 	// call after initializing and before app_renderer
-	geom.initialize_model(system_data, mfunc_data, solver_type);
+	geom.initialize_model(infile);
 
 }
 
@@ -175,12 +174,11 @@ void app_window::app_render()
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
 
-		// Calculate the fps
-		calculateFPS();
-		// geom.app_fps = this->fps;
-
 		// menu events
 		menu_events();
+
+		// Status bar
+		draw_status_bar();
 
 		// Render OpenGL graphics here
 		glClearColor(geom.geom_param.geom_colors.background_color.x,
@@ -224,11 +222,11 @@ void app_window::menu_events()
 		// File menu item
 		if (ImGui::BeginMenu("File"))
 		{
-			if (ImGui::MenuItem("Simulation setup"))
-			{
-				// Model data menu
-				sim_window.is_show_window = true;
-			}
+			//if (ImGui::MenuItem("Simulation setup"))
+			//{
+			//	// Model data menu
+			//	// sim_window.is_show_window = true;
+			//}
 			if (ImGui::MenuItem("Options"))
 			{
 				// Options menu
@@ -246,8 +244,8 @@ void app_window::menu_events()
 		ImGui::EndMainMenuBar();
 	}
 
-	//// Execute window render operation
-	sim_window.render_window(); // model window
+	// Execute window render operation
+	// sim_window.render_window(); // model window
 	op_window.render_window(); // Option window
 
 	// Pop the custom font after using it
@@ -287,20 +285,35 @@ void app_window::GLFWwindow_set_icon(GLFWwindow* window)
 }
 
 
-
-void app_window::calculateFPS()
+void app_window::draw_status_bar()
 {
-	double current_time = glfwGetTime();
-	double delta_time = current_time - previous_time;
-	frame_count++;
+	ImGuiViewport* viewport = ImGui::GetMainViewport();
 
-	// Update every second
-	if (delta_time >= 1.0)
-	{
-		this->fps = (double)frame_count / delta_time;
 
-		// Reset for the next second
-		previous_time = current_time;
-		frame_count = 0;
-	}
+	float height = ImGui::GetFrameHeight();
+
+	ImGui::SetNextWindowPos(
+		ImVec2(viewport->Pos.x, viewport->Pos.y + viewport->Size.y - height));
+
+	ImGui::SetNextWindowSize(
+		ImVec2(viewport->Size.x, height));
+
+	ImGuiWindowFlags flags =
+		ImGuiWindowFlags_NoTitleBar |
+		ImGuiWindowFlags_NoResize |
+		ImGuiWindowFlags_NoMove |
+		ImGuiWindowFlags_NoScrollbar |
+		ImGuiWindowFlags_NoSavedSettings;
+
+
+	ImGui::Begin("StatusBar", nullptr, flags);
+
+	float fps = ImGui::GetIO().Framerate;
+	float ms = 1000.0f / fps;
+
+	ImGui::Text("FPS: %.1f | Frame: %.2f ms", fps, ms);
+
+	ImGui::End();
 }
+
+

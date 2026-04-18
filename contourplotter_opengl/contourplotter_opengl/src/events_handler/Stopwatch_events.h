@@ -1,11 +1,11 @@
 #pragma once
 #include <chrono>
 
-class stopwatch_events
+class Stopwatch_events 
 {
 public:
-    stopwatch_events();
-    ~stopwatch_events() = default;
+    Stopwatch_events();
+    ~Stopwatch_events() = default;
     void start();
     void stop();
     double elapsed() const;

@@ -14,7 +14,6 @@
 //____ Mouse event handler
 #include "events_handler/mouse_event_handler.h"
 //____ Tool Window
-#include "tool_window/simulate_window.h"
 #include "tool_window/options_window.h"
 
 
@@ -36,7 +35,6 @@ public:
 	geom_store geom;
 
 	// Tool window variable
-	simulate_window sim_window;
 	options_window op_window;
 
 
@@ -45,18 +43,16 @@ public:
 
 	// Functions
 	void init();
-	void set_system(double* system_data, double* mfunc_data, int solver_type);
+	void set_system(std::ifstream& infile);
 	void fini();
 	void app_render();
 	void menu_events();
 
 private:
-	double previous_time = 0.0;
-	int frame_count = 0;
-	double fps = 0.0;
 
 	static void framebufferSizeCallback(GLFWwindow* window, int window_width, int window_height);
 	void GLFWwindow_set_icon(GLFWwindow* window);
-	void calculateFPS();
+
+	void draw_status_bar();
 
 };

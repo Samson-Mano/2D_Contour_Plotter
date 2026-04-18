@@ -3,7 +3,7 @@
 #include <sstream> // for std::stringstream
 
 
-#include "utility/stopwatch_events.h"
+#include "src/events_handler/Stopwatch_events.h"
 
 int main()
 {
@@ -18,7 +18,7 @@ int main()
 		return 0;
 	}
 
-	stopwatch_events stopwatch;
+	Stopwatch_events stopwatch;
 	std::stringstream stopwatch_elapsed_str;
 
 	
