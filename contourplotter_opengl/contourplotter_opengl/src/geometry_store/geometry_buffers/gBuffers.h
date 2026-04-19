@@ -11,24 +11,23 @@ class gBuffers
 {
 public:
 	gBuffers();
-	~gBuffers();
+	~gBuffers() = default;
 	void Bind()const;
 	void UnBind()const;
-	void CreateBuffers(const float* vb_data,
-		unsigned int& vb_size,
-		const unsigned int* ib_indices,
-		unsigned int& ib_count,
-		VertexBufferLayout& vb_layout);
-	void CreateDynamicBuffers(unsigned int& vb_size,
-		const unsigned int* ib_indices,
-		unsigned int& ib_count,
-		VertexBufferLayout& vb_layout);
-	void UpdateDynamicVertexBuffer(const float* vb_data,
-		unsigned int& vb_size);
 
-	VertexBuffer vbo;
+	void CreateBuffers(const float* vbstatic_data, 
+		unsigned int vbstatic_size,
+		unsigned int vbdynamic_size,
+		VertexBufferLayout vbstatic_layout,
+		VertexBufferLayout vbdynamic_layout);
+
+	void UpdateDynamicVertexBuffer(const float* vbdynamic_data,
+		unsigned int& vbdynamic_size);
+
+	VertexBuffer vbo_static;
+	VertexBuffer vbo_dynamic;
 	VertexArray vao;
-	IndexBuffer ibo;
+
 private:
 
 };

@@ -5,224 +5,314 @@ obj_mesh_data::obj_mesh_data()
 	// Empty constructor
 }
 
-obj_mesh_data::~obj_mesh_data()
-{
-	// Empty destructor
-}
 
-void obj_mesh_data::init(geom_parameters* geom_param_ptr, bool is_paint_geom_pts, bool is_paint_geom_lines, bool is_paint_geom_tris)
+void obj_mesh_data::init(geom_parameters* geom_param_ptr)
 {
 	// Set the geometry parameters
 	this->geom_param_ptr = geom_param_ptr;
 
-	// Set the view state (whether the model is only surface, only lines or only pts or paint all?
-	this->is_paint_geom_pts = is_paint_geom_pts;
-	this->is_paint_geom_lines = is_paint_geom_lines;
-	this->is_paint_geom_tris = is_paint_geom_tris;
+	// Create the mesh shader
+	auto shaderSrc = ShaderLibrary::Get(ShaderLibrary::ShaderType::MeshShader);
 
-	// Initialize the mesh objects (points, lines, surfaces)
-	this->mesh_points.init(geom_param_ptr);
-	this->mesh_lines.init(geom_param_ptr);
-	this->mesh_tris.init(geom_param_ptr);
+	mesh_shader.create_shader(shaderSrc.vertex.c_str(), shaderSrc.fragment.c_str());
+
+	// Delete all the points, lines and triangles
+	clear_mesh();
 
 }
 
-void obj_mesh_data::add_mesh_point(const int& point_id, const double& x_coord, const double& y_coord)
+
+
+void obj_mesh_data::add_mesh_point(int point_id, float x_coord, float y_coord,
+	const std::vector<float>& z_values)
 {
-	// add the points
-	this->mesh_points.add_point(point_id, x_coord, y_coord);
+	// Add to the list
+	pointMap.push_back({ point_id, x_coord, y_coord });
+
+	// Add to the z value list in the [point][time step] format
+	point_Zvals.push_back(z_values);
+
+	// Iterate the point count
+	point_count++;
 
 }
 
-void obj_mesh_data::add_mesh_lines(const int& line_id, const int& start_pt_id, const int& end_pt_id)
+void obj_mesh_data::add_mesh_wireframe(int startpt_id, int endpt_id)
 {
 	// add the lines
-	// Get the start pt and end point
-	point_store* start_pt = this->mesh_points.get_point(start_pt_id);
-	point_store* end_pt = this->mesh_points.get_point(end_pt_id);
+	lineMap.push_back({ startpt_id, endpt_id });
 
-	// If points are not valid... exit
-	if (start_pt == nullptr || end_pt == nullptr)
-		return;
-
-	this->mesh_lines.add_line(line_id, start_pt, end_pt);
+	// Iterate the line count
+	line_count++;
 
 }
 
-void obj_mesh_data::add_mesh_tris(const int& tri_id, const int& point_id1, const int& point_id2, const int& point_id3)
+void obj_mesh_data::add_mesh_tris(int point_id1, int point_id2, int point_id3)
 {
+	// add the triangles
+	triMap.push_back({ point_id1, point_id2, point_id3 });
 
-	//    2____3 
-	//    |   /  
-	//    | /    
-	//    1      
+	// Iterate the triangle count
+	tri_count++;
+}
 
-	// Add the half triangle of the quadrilaterals
-	// Add three half edges
-	int line_id1, line_id2, line_id3;
 
-	// Add edge 1
-	line_id1 = add_half_edge(point_id1, point_id2);
 
-	// Point 1 or point 2 not found
-	if (line_id1 == -1)
-		return;
 
-	// Add edge 2
-	line_id2 = add_half_edge(point_id2, point_id3);
+void obj_mesh_data::update_buffer(int timestep_i)
+{
+	// Define the node z value for a point dynamic buffer
 
-	// Point 3 not found
-	if(line_id2 == -1)
+	const auto& frame = point_Zvals[timestep_i];
+	// dynamic_buffer = frame; // faster (memcpy)
+
+	std::memcpy(dynamic_buffer.data(), frame.data(), point_count * sizeof(float));
+
+	const unsigned int pointdynamic_vertex_count = 1 * point_count;
+	unsigned int pointdynamic_vertex_size = pointdynamic_vertex_count * sizeof(float); // Size of the node_vertex
+
+	// Update the buffer
+	mesh_buffer.UpdateDynamicVertexBuffer(dynamic_buffer.data(), pointdynamic_vertex_size);
+
+}
+
+
+
+void obj_mesh_data::create_buffer()
+{
+	// Create the index buffer for the points
+	create_point_index_buffer();
+	create_line_index_buffer();
+	create_tri_index_buffer();	
+
+	//_______________________________________________________________________________________________________________
+	// Define the node vertices of the model for a node (2 position) static buffer
+	const unsigned int pointstatic_vertex_count = 2 * point_count;
+	unsigned int pointstatic_vertex_size = pointstatic_vertex_count * sizeof(float); // Size of the node_vertex
+
+	std::vector<float> pointstatic_vertices;
+	
+	// Set the point vertex buffers
+	for (auto& pt : pointMap)
 	{
-		mesh_half_edges.pop_back(); // remove the last item which is edge 1
-		half_edge_count--;
-		return;
+		// Add vertex buffers
+		pointstatic_vertices.push_back(pt.x_coord);
+		pointstatic_vertices.push_back(pt.y_coord);
+
 	}
 
-
-	// Add edge 3
-	line_id3 = add_half_edge(point_id3, point_id1);
-
-
-	//________________________________________
-	// Add the mesh triangles
-	this->mesh_tris.add_tri(tri_id, mesh_half_edges[line_id1],
-		mesh_half_edges[line_id2],
-		mesh_half_edges[line_id3]);
+	VertexBufferLayout nodestatic_layout;
+	nodestatic_layout.AddFloat(2);  // Node position (x, y)
 
 
-	// Set the half edges next line
-	mesh_half_edges[line_id1]->next_line = mesh_half_edges[line_id2];
-	mesh_half_edges[line_id2]->next_line = mesh_half_edges[line_id3];
-	mesh_half_edges[line_id3]->next_line = mesh_half_edges[line_id1];
+	//_______________________________________________________________________________________________________________
+	// Initialize the dynamic vertext size
+	const unsigned int pointdynamic_vertex_count = 1 * point_count; // 1 vertex attribute (z value) for a point
+	unsigned int pointdynamic_vertex_size = pointdynamic_vertex_count * sizeof(float); // Size of the mode z value
 
-	// Set the half edge face data
-	tri_store* temp_tri = this->mesh_tris.get_triangle(tri_id);
 
-	mesh_half_edges[line_id1]->face = temp_tri;
-	mesh_half_edges[line_id2]->face = temp_tri;
-	mesh_half_edges[line_id3]->face = temp_tri;
+	VertexBufferLayout nodedynamic_layout;
+	nodedynamic_layout.AddFloat(1);  // Node z value (Z)
 
+	dynamic_buffer.resize(point_count);
+
+	// Flip the point_Zvals to [time step][point] format for faster access during buffer updates
+	int totalFrames = static_cast<int>(point_Zvals[0].size()); // Total frame is the size of the inner vector (time steps)
+	std::vector<std::vector<float>> flipped_point_Zvals(totalFrames, std::vector<float>(point_count));
+
+	for (int p = 0; p < point_count; ++p)
+	{
+		for (int t = 0; t < totalFrames; ++t)
+		{
+			flipped_point_Zvals[t][p] = point_Zvals[p][t];
+		}
+	}
+
+	point_Zvals = std::move(flipped_point_Zvals);
+
+	// Create the point dynamic buffers
+	mesh_buffer.CreateBuffers(pointstatic_vertices.data(),
+		pointstatic_vertex_size,
+		pointdynamic_vertex_size,
+		nodestatic_layout,
+		nodedynamic_layout);
+
+	//
 }
 
-void obj_mesh_data::update_mesh_point(const int& point_id, const double& x_coord, const double& y_coord)
-{
-	// Update the point with new - coordinates
-	this->mesh_points.update_point(point_id, x_coord, y_coord);
-
-}
-
-void obj_mesh_data::update_mesh_buffer()
-{
-	// Update the mesh point buffer
-	this->mesh_points.update_buffer();
-	this->mesh_lines.update_buffer();
-
-}
-
-void obj_mesh_data::update_mesh_color(const glm::vec3& point_color, const glm::vec3& line_color, const glm::vec3& tri_color)
-{
-	// Set the color of the mesh
-	this->mesh_points.set_point_color(point_color);
-	this->mesh_lines.set_line_color(line_color);
-	this->mesh_tris.set_tri_color(tri_color);
-
-}
-
-void obj_mesh_data::set_buffer()
-{
-	// Set the buffer
-	this->mesh_tris.set_buffer();
-	this->mesh_lines.set_buffer();
-	this->mesh_points.set_buffer();
-
-}
 
 void obj_mesh_data::clear_mesh()
 {
 	// Clear the mesh
-	this->mesh_tris.clear_triangles();
-	this->mesh_half_edges.clear();
-	this->mesh_lines.clear_lines();
-	this->mesh_points.clear_points();
+	point_count = 0;
+	line_count = 0;
+	tri_count = 0;
 
+	point_Zvals.clear();
+	pointMap.clear();
+	lineMap.clear();
+	triMap.clear();	
 }
 
-void obj_mesh_data::paint_static_mesh()
+
+void obj_mesh_data::paint_mesh()
 {
-	// Paint the static mesh (mesh which are fixed)
-	if (is_paint_geom_tris == true)
-	{
-		// Paint the mesh triangles
-		this->mesh_tris.paint_static_triangles();
+	// Paint the mesh
+	mesh_shader.Bind();
+	mesh_buffer.Bind();
 
+	if (tri_count != 0)
+	{
+		// Paint the triangles
+		ibo_tris.Bind();
+		glDrawElements(GL_TRIANGLES, (3 * tri_count), GL_UNSIGNED_INT, 0);
+		ibo_tris.UnBind();
 	}
 
-	if (is_paint_geom_lines == true)
+	if (line_count != 0)
 	{
-		// Paint the mesh lines
-		this->mesh_lines.paint_static_lines();
-
+		// Paint the wireframe
+		ibo_lines.Bind();
+		glDrawElements(GL_LINES, (2 * line_count), GL_UNSIGNED_INT, 0);
+		ibo_lines.UnBind();
 	}
 
-	if (is_paint_geom_pts == true)
+	if (point_count != 0)
 	{
-		// Paint the mesh points
-		this->mesh_points.paint_static_points();
-
+		// Paint the points
+		ibo_points.Bind();
+		glDrawElements(GL_POINTS, point_count, GL_UNSIGNED_INT, 0);
+		ibo_points.UnBind();
 	}
 
+	mesh_buffer.UnBind();
+	mesh_shader.UnBind();
+	//
 }
 
-void obj_mesh_data::paint_dynamic_mesh()
-{
-	// Paint the dynamic mesh (mesh which are not-fixed but variable)
-	if (is_paint_geom_tris == true)
-	{
-		// Paint the mesh triangles
-		this->mesh_tris.paint_dynamic_triangles();
 
-	}
 
-	if (is_paint_geom_lines == true)
-	{
-		// Paint the mesh lines
-		this->mesh_lines.paint_dynamic_lines();
 
-	}
-
-	if (is_paint_geom_pts == true)
-	{
-		// Paint the mesh points
-		this->mesh_points.paint_dynamic_points();
-
-	}
-
-}
 
 void obj_mesh_data::update_opengl_uniforms(bool set_modelmatrix, bool set_viewmatrix, bool set_transparency)
 {
 	// Update the openGl uniform matrices
-	this->mesh_tris.update_opengl_uniforms(set_modelmatrix, set_viewmatrix, set_transparency);
-	this->mesh_lines.update_opengl_uniforms(set_modelmatrix, set_viewmatrix, set_transparency);
-	this->mesh_points.update_opengl_uniforms(set_modelmatrix, set_viewmatrix, set_transparency);
+	if (set_modelmatrix == true)
+	{
+		// set the transparency
+		mesh_shader.setUniform("vertexTransparency", 1.0f);
 
+		// set the model matrix
+		mesh_shader.setUniform("modelMatrix", geom_param_ptr->modelMatrix, false);
+
+	}
+
+	if (set_viewmatrix == true)
+	{
+		glm::mat4 scalingMatrix = glm::mat4(1.0) * static_cast<float>(geom_param_ptr->zoom_scale);
+		scalingMatrix[3][3] = 1.0f;
+
+		glm::mat4 viewMatrix = glm::transpose(geom_param_ptr->panTranslation) * scalingMatrix;
+
+		// set the view matrix
+		mesh_shader.setUniform("viewMatrix", viewMatrix, false);
+	}
+
+	if (set_transparency == true)
+	{
+		// set the alpha transparency  static_cast<float>(geom_param_ptr->geom_transparency)
+		mesh_shader.setUniform("vertexTransparency", static_cast<float>(geom_param_ptr->geom_transparency));
+
+	}
+	//
 }
 
 
-int obj_mesh_data::add_half_edge(const int& startPt_id, const int& endPt_id)
+void obj_mesh_data::create_point_index_buffer()
 {
-	// Add the Half edge
-	line_store* temp_edge = new line_store;
-	temp_edge->line_id = half_edge_count;
-	temp_edge->start_pt = this->mesh_points.get_point(startPt_id);
-	temp_edge->end_pt = this->mesh_points.get_point(endPt_id);
+	// Create the Point buffer
+	// Set the buffer for index
+	unsigned int point_indices_count = 1 * point_count; // 1 indices to form a point
+	std::vector<unsigned int> point_indices;
 
-	// Add to the Half edge list
-	mesh_half_edges.push_back(temp_edge);
+	unsigned int point_i_index = 0;
 
-	// Iterate
-	half_edge_count++;
+	// Set the point index buffers
+	for (auto& pt : pointMap)
+	{
+		//__________________________________________________________________________
+		// Add the indices
+		point_indices.push_back(point_i_index);
 
-	return (half_edge_count - 1); // return the index of last addition
+		point_i_index = point_i_index + 1;
+
+	}
+
+	ibo_points.createIndexBuffer(point_indices.data(), point_indices_count);
+
 }
+
+
+
+void obj_mesh_data::create_line_index_buffer()
+{
+	if(line_count == 0)
+	{
+		return; // No lines to create index buffer for
+	}
+
+	// Create the Line buffer
+	// Set the buffer for index
+	unsigned int line_indices_count = 2 * line_count; // Each line contributes 2 indices
+	std::vector<unsigned int> line_indices;
+
+	// Set the line index buffers
+	for (auto& ln : lineMap)
+	{
+		//__________________________________________________________________________
+		// Add the indices
+		// Index 1
+		line_indices.push_back(ln.startpt_id);
+
+		// Index 2
+		line_indices.push_back(ln.endpt_id);
+
+	}
+
+	ibo_lines.createIndexBuffer(line_indices.data(), line_indices_count);
+//
+}
+
+
+
+void obj_mesh_data::create_tri_index_buffer()
+{
+	if (tri_count == 0)
+	{
+		return; // No triangles to create index buffer for
+	}
+
+	// Set the buffer for index
+	unsigned int tri_indices_count = 3 * tri_count; // 3 indices to form a triangle
+	std::vector<unsigned int> tri_indices;
+
+
+	// Set the triangle index buffers
+	for (auto& tri : triMap)
+	{
+		// Add index buffers
+		// Index 1
+		tri_indices.push_back(tri.point_id1);
+
+		// Index 2
+		tri_indices.push_back(tri.point_id2);
+
+		// Index 3
+		tri_indices.push_back(tri.point_id3);
+	}
+
+	ibo_tris.createIndexBuffer(tri_indices.data(), tri_indices_count);
+	//
+}
+
+

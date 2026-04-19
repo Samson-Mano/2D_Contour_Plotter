@@ -11,14 +11,14 @@ Shader::~Shader()
 	glDeleteProgram(this->s_id);
 }
 
-void Shader::create_shader(const char* vertexFile, const char* fragmentFile)
+void Shader::create_shader(const char* vertexSrc, const char* fragmentSrc)
 {
 	// Constructor that takes vertex and fragment shader file names
 	// Load and compile the vertex shader
-	unsigned int vertexShader = loadShader(GL_VERTEX_SHADER, vertexFile);
+	unsigned int vertexShader = compileShader(GL_VERTEX_SHADER, vertexSrc);
 
 	// Load and compile the fragment shader
-	unsigned int fragmentShader = loadShader(GL_FRAGMENT_SHADER, fragmentFile);
+	unsigned int fragmentShader = compileShader(GL_FRAGMENT_SHADER, fragmentSrc);
 
 	// Link the shader program
 	linkProgram(vertexShader, fragmentShader);
@@ -186,52 +186,23 @@ void Shader::setUniform(int i, unsigned int tid)
 
 //_____________________________________________________________________________________________________________
 
-std::string Shader::loadShaderSource(const char* fileName)
-{
-	// Load shader source from file and return as string
-	std::string temp = ""; // Temporary string to store each line of the shader source
-	std::string src = ""; // Final string to store the entire shader source
 
-	// Input file stream for reading from file
-	std::ifstream in_file; 
-
-
-	// Open the file with the given file name
-	in_file.open(fileName);
-
-	if (in_file.is_open()) // Check if file was successfully opened
-	{
-		while (std::getline(in_file, temp)) // Read each line from file
-			src += temp + "\n"; // Append each line to the final shader source string with a newline character
-	}
-	else
-	{
-		std::cout << "ERROR::SHADER::COULD_NOT_OPEN_FILE: " << fileName << "\n"; // Print error message if file could not be opened
-	}
-
-	in_file.close(); // Close the file
-
-	return src; // Return the final shader source string
-}
-
-unsigned int Shader::loadShader(GLenum type, const char* fileName)
+unsigned int Shader::compileShader(GLenum type, const char* source)
 {
 	// Load shader source from file and compile shader
-	char infoLog[512];
-	int success;
-
 	unsigned int shader = glCreateShader(type); // Create a shader object of given type
-	std::string str_src = this->loadShaderSource(fileName); // Load shader source from file
-	const char* src = str_src.c_str(); // Convert shader source to GLchar array
-	glShaderSource(shader, 1, &src, NULL); // Set shader source
+	glShaderSource(shader, 1, &source, NULL); // Set shader source
 	glCompileShader(shader); // Compile shader source
 
+	int success;
 	glGetShaderiv(shader, GL_COMPILE_STATUS, &success); // Check shader compilation status
+
 	if (!success)
 	{
+		char infoLog[512];
 		glGetShaderInfoLog(shader, 512, NULL, infoLog); // Get shader compilation error log
-		std::cout << "ERROR::SHADER::COULD_NOT_COMPILE_SHADER: " << fileName << "\n";
-		std::cout << infoLog << "\n"; // Print shader compilation error log
+
+		std::cout << "Shader compilation error:\n" << infoLog << std::endl; // Print shader compilation error log
 	}
 
 	return shader; // Return compiled shader object

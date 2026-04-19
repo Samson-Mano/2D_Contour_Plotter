@@ -1,7 +1,36 @@
 #pragma once
-#include "point_list_store.h"
-#include "line_list_store.h"
-#include "tri_list_store.h"
+#include "../geometry_buffers/gBuffers.h"
+#include "../geom_parameters.h"
+
+
+struct point_store
+{
+	// store the individual point
+	int point_id = -1; // Point ID
+	float x_coord = 0.0; // x coordinate
+	float y_coord = 0.0; // y coordinate
+	// std::vector<float> z_values; // Z values for each time step (size = totalFrames)
+
+};
+
+
+struct line_store
+{
+	// store the individual point
+	int startpt_id = -1; // Start point ID
+	int endpt_id = -1; // End point ID
+
+};
+
+
+struct tri_store
+{
+	// store the individual Triangle
+	int point_id1 = -1; // Point ID 1
+	int point_id2 = -1; // Point ID 2
+	int point_id3 = -1; // Point ID 3
+};
+
 
 class obj_mesh_data
 {
@@ -9,57 +38,63 @@ public:
 
 
 	obj_mesh_data();
-	~obj_mesh_data();
+	~obj_mesh_data() = default;
 
-	void init(geom_parameters* geom_param_ptr, 
-			  bool is_paint_geom_pts,
-			  bool is_paint_geom_lines,
-			  bool is_paint_geom_tris);
+	void init(geom_parameters* geom_param_ptr);
 
-	void add_mesh_point(const int& point_id,
-		const double& x_coord,
-		const double& y_coord);
+	void add_mesh_point(int point_id,
+		float x_coord,
+		float y_coord, 
+		const std::vector<float>& z_values);
 
-	void add_mesh_lines(const int& line_id,
-		const int& start_pt_id,
-		const int& end_pt_id);
+	void add_mesh_wireframe(int startpt_id,
+		int endpt_id);
 
-	void add_mesh_tris(const int& tri_id,
-		const int& point_id1,
-		const int& point_id2,
-		const int& point_id3);
+	void add_mesh_tris(int point_id1,
+		int point_id2,
+		int point_id3);
 
-	void update_mesh_point(const int& point_id,
-		const double& x_coord,
-		const double& y_coord);
 
-	void update_mesh_buffer();
-
-	void update_mesh_color(const glm::vec3& point_color, const glm::vec3& line_color, const glm::vec3& tri_color);
-
-	void set_buffer();
-
+	void update_buffer(int timestep_i);
+	void create_buffer();
 	void clear_mesh();
+	void paint_mesh();
 
-	void paint_static_mesh();
-
-	void paint_dynamic_mesh();
 
 	void update_opengl_uniforms(bool set_modelmatrix, bool set_viewmatrix, bool set_transparency);
 
 private:
-	bool is_paint_geom_pts = false;
-	bool is_paint_geom_lines = false;
-	bool is_paint_geom_tris = false;
-
 	geom_parameters* geom_param_ptr = nullptr;
+	
+	// Mesh points, lines, and triangles count
+	unsigned int point_count = 0;
+	unsigned int line_count = 0;
+	unsigned int tri_count = 0;
 
-	point_list_store mesh_points;
-	line_list_store mesh_lines;
-	tri_list_store mesh_tris;
+	// Point map and z values
+	std::vector<point_store> pointMap;
+	std::vector<std::vector<float>> point_Zvals; // [time step][point]
 
-	int half_edge_count = 0;
-	std::vector<line_store*> mesh_half_edges; // All the Half edge data
+	// Line map	
+	std::vector<line_store> lineMap;
 
-	int add_half_edge(const int& startPt_id, const int& endPt_id);
+	// Triangle map
+	std::vector<tri_store> triMap;
+
+	// Dynamic buffer to store the z values for each time step (size = point_count * totalFrames)
+	std::vector<float> dynamic_buffer;
+
+	gBuffers mesh_buffer;
+	Shader mesh_shader;
+
+	IndexBuffer ibo_points;
+	IndexBuffer ibo_lines;
+	IndexBuffer	ibo_tris;
+
+
+	void create_point_index_buffer();
+	void create_line_index_buffer();
+	void create_tri_index_buffer();
+
+
 };

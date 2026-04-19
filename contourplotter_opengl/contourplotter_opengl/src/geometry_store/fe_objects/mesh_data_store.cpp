@@ -6,6 +6,12 @@ mesh_data_store::mesh_data_store()
 	// Empty constructor
 }
 
+void mesh_data_store::init(geom_parameters* geom_param_ptr)
+{
+	this->geom_param_ptr = geom_param_ptr;
+
+}
+
 
 
 void mesh_data_store::load_simulation_data(std::ifstream& infile, float boundary_width)
@@ -35,6 +41,9 @@ void mesh_data_store::load_simulation_data(std::ifstream& infile, float boundary
 
 	// Generate points based on the grid dimensions and boundary width
 	float boundary_width_buffered = boundary_width * 0.9f; // Add some buffer to ensure points are within the boundary
+
+	mesh_data.init(geom_param_ptr, true, true, true); // Initialize the mesh data for points, lines and triangles
+
 
 	int pt_id = 0; // give id to the points
 	this->points.clear(); // Clear any existing points

@@ -15,6 +15,7 @@ void VertexArray::createVertexArray()
 {
 	// Main Constructor: generates a unique vertex array object ID.
 	glGenVertexArrays(1, &va_id);
+	m_AttribIndex = 0; // Reset the attribute index to 0 when creating a new vertex array
 }
 
 void VertexArray::AddBuffer(const VertexBuffer& vbo, const VertexBufferLayout& layout)
@@ -32,15 +33,18 @@ void VertexArray::AddBuffer(const VertexBuffer& vbo, const VertexBufferLayout& l
 	for (int i = 0; i < elements.size(); i++)
 	{
 		const auto& element = elements[i];
+
 		// Enable the vertex attribute array for the specified buffer index.
-		glEnableVertexAttribArray(i);
+		glEnableVertexAttribArray(m_AttribIndex);
 
 		// Set up the vertex attribute pointer for the specified buffer index.
 		// This specifies how to interpret the vertex data in the vertex buffer object.
-		glVertexAttribPointer(i, element.count, element.type,
+		glVertexAttribPointer(m_AttribIndex, element.count, element.type,
 			element.normalized, layout.GetStride(), (const void*)(uintptr_t)offset);
 
 		offset += element.count * VertexBufferElement::GetSizeOfType(element.type);
+
+		m_AttribIndex++; // Increment the attribute index for the next buffer
 	}
 
 	// Unbind the vertex buffer object.

@@ -6,6 +6,9 @@
 #include <sstream>
 #include <iomanip>
 
+#include "../geometry_objects/obj_mesh_data.h"
+
+
 struct frame_data
 {
 	float time;
@@ -25,22 +28,22 @@ struct simulation_data
 	std::vector<frame_data> frames;
 };
 
-struct point_store
-{
-	int pt_id;
-	float x, y;
-	// std::vector<float> z_values; // size = totalFrames	
-};
-
-struct edge_store
-{
-	int start_pt_id, end_pt_id;
-};
-
-struct triangle_store
-{
-	int pt1_id, pt2_id, pt3_id;
-};
+//struct point_store
+//{
+//	int pt_id;
+//	float x, y;
+//	// std::vector<float> z_values; // size = totalFrames	
+//};
+//
+//struct edge_store
+//{
+//	int start_pt_id, end_pt_id;
+//};
+//
+//struct triangle_store
+//{
+//	int pt1_id, pt2_id, pt3_id;
+//};
 
 
 class mesh_data_store
@@ -49,16 +52,22 @@ public:
 	mesh_data_store();
 	~mesh_data_store() = default;
 
+	void init(geom_parameters* geom_param_ptr);
 	void load_simulation_data(std::ifstream& infile, float boundary_width);
 
 private:
+	geom_parameters* geom_param_ptr = nullptr;
+
+
 	// Main variable to store the simulation data
 	simulation_data sim_data;
+	
+	obj_mesh_data mesh_data; // Store the mesh data
 
 
-	std::vector<point_store> points;
-	std::vector<edge_store> wireframe_edges;
-	std::vector<triangle_store> triangles;
+	//std::vector<point_store> points;
+	//std::vector<edge_store> wireframe_edges;
+	//std::vector<triangle_store> triangles;
 
 };
 

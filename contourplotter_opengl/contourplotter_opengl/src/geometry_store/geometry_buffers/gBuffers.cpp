@@ -5,61 +5,55 @@ gBuffers::gBuffers()
 	// Empty constructor
 }
 
-gBuffers::~gBuffers()
-{
-	// Empty destructor
-}
-
 void gBuffers::Bind() const
 {
 	// Bind the buffers
 	vao.Bind();
-	ibo.Bind();
+
 }
 
 void gBuffers::UnBind() const
 {
 	// Un Bind the buffers
 	vao.UnBind();
-	ibo.UnBind();
-}
 
-void gBuffers::CreateBuffers(const float* vb_data, unsigned int& vb_size, 
-	const unsigned int* ib_indices, unsigned int& ib_count, VertexBufferLayout& vb_layout)
-{
-	vao.createVertexArray();
-
-	// Vertex buffer (vertices and number of vertices * sizeof(float))
-	vbo.createVertexBuffer(vb_data, vb_size);
-
-	// Index buffer (indices and number of indices)
-	ibo.createIndexBuffer(ib_indices, ib_count);
-
-	// Vertex Array (vertex buffer and vertex buffer layout) 
-	vao.AddBuffer(vbo, vb_layout);
 }
 
 
-void gBuffers::CreateDynamicBuffers(unsigned int& vb_size,
-	const unsigned int* ib_indices,
-	unsigned int& ib_count,
-	VertexBufferLayout& vb_layout)
+void gBuffers::CreateBuffers(const float* vbstatic_data,
+	unsigned int vbstatic_size,
+	unsigned int vbdynamic_size,
+	VertexBufferLayout vbstatic_layout,
+	VertexBufferLayout vbdynamic_layout)
 {
 	vao.createVertexArray();
 
+	//_____________________________________________________________________________
+	// Static Vertex buffer (vertices and number of vertices * sizeof(float))
+	// Data which never changes, such as vertices of a static model (x, y data)
+	vbo_static.createVertexBuffer(vbstatic_data, vbstatic_size);
+
+	// Add to the buffer
+	vao.AddBuffer(vbo_static, vbstatic_layout);
+
+	//_____________________________________________________________________________
 	// Dynamic Vertex buffer (vertices and number of vertices * sizeof(float))
-	vbo.createDynamicVertexBuffer(vb_size);
+	vbo_dynamic.createDynamicVertexBuffer(vbdynamic_size);
 
-	// Index buffer (indices and number of indices)
-	ibo.createIndexBuffer(ib_indices, ib_count);
+	// Add to the buffer
+	vao.AddBuffer(vbo_dynamic, vbdynamic_layout);
 
-	// Vertex Array (vertex buffer and vertex buffer layout) 
-	vao.AddBuffer(vbo, vb_layout);
+
+	//// Index buffer (indices and number of indices)
+	// ibo.createIndexBuffer(ib_indices, ib_count);
+
 }
 
-void gBuffers::UpdateDynamicVertexBuffer(const float* vb_data,
-	unsigned int& vb_size)
+void gBuffers::UpdateDynamicVertexBuffer(const float* vbdynamic_data,
+	unsigned int& vbdynamic_size)
 {
 	// Dynamically update the vertex data to the Vertex Buffer
-	vbo.updateVertexBuffer(vb_data, vb_size);
+	vbo_dynamic.updateVertexBuffer(vbdynamic_data, vbdynamic_size);
 }
+
+

@@ -16,4 +16,7 @@ public:
 	void UnBind() const;
 private:
 	unsigned int va_id = 0;
+
+	unsigned int m_AttribIndex = 0;
+
 };
