@@ -18,10 +18,9 @@ void text_list_store::init(geom_parameters* geom_param_ptr)
 	this->geom_param_ptr = geom_param_ptr;
 
 	// Create the label shader
-	std::filesystem::path shadersPath = geom_param_ptr->resourcePath;
+	auto shaderSrc = ShaderLibrary::Get(ShaderLibrary::ShaderType::TextShader);
 
-	text_shader.create_shader((shadersPath.string() + "/resources/shaders/text_vert_shader.vert").c_str(),
-		(shadersPath.string() + "/resources/shaders/text_frag_shader.frag").c_str());
+	text_shader.create_shader(shaderSrc.vertex.c_str(), shaderSrc.fragment.c_str());
 
 	// Set texture uniform variables
 	text_shader.setUniform("u_Texture", 0);

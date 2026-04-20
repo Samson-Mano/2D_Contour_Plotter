@@ -15,10 +15,10 @@ void options_window::init()
 	// Initialize the options
 	is_show_window = false;
 	is_show_time_text = true;
-	is_show_mesh_boundary = true;
-	is_show_mesh_points = true;
+	is_show_mesh_boundary = false;
+	is_show_mesh_points = false;
 	is_show_mesh_tris = true;
-	is_show_boundarybox = false;
+	is_show_boundarybox = true;
 
 	selected_color_theme = 1;
 	is_color_theme_changed = false;

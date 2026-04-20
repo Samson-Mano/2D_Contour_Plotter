@@ -41,19 +41,21 @@ void geom_store::initialize_model(std::ifstream& infile)
 
 	//_____________________________________________________________________________________
 	// Create the model boundary
-	boundary_lines.init(&geom_param, true, true, false);
+	boundary_lines.init(&geom_param);
 
 	// Add the boundary points
-	boundary_lines.add_mesh_point(0, -boundary_width / 2.0f, -boundary_width / 2.0f);
-	boundary_lines.add_mesh_point(1, -boundary_width / 2.0f, boundary_width / 2.0f);
-	boundary_lines.add_mesh_point(2, boundary_width / 2.0f, boundary_width / 2.0f);
-	boundary_lines.add_mesh_point(3, boundary_width / 2.0f, -boundary_width / 2.0f);
+	std::vector<float> temp_z_values{1.0f, 0.0f}; // Temporary z values for the boundary points
+
+	boundary_lines.add_mesh_point(0, -boundary_width / 2.0f, -boundary_width / 2.0f, temp_z_values);
+	boundary_lines.add_mesh_point(1, -boundary_width / 2.0f, boundary_width / 2.0f, temp_z_values);
+	boundary_lines.add_mesh_point(2, boundary_width / 2.0f, boundary_width / 2.0f, temp_z_values);
+	boundary_lines.add_mesh_point(3, boundary_width / 2.0f, -boundary_width / 2.0f, temp_z_values);
 
 	// Add the boundary lines
-	boundary_lines.add_mesh_lines(0, 0, 1);
-	boundary_lines.add_mesh_lines(1, 1, 2);
-	boundary_lines.add_mesh_lines(2, 2, 3);
-	boundary_lines.add_mesh_lines(3, 3, 0);
+	boundary_lines.add_mesh_wireframe(0, 1);
+	boundary_lines.add_mesh_wireframe(1, 2);
+	boundary_lines.add_mesh_wireframe(2, 3);
+	boundary_lines.add_mesh_wireframe(3, 0);
 
 
 	// Set the boundary of the geometry
@@ -67,14 +69,19 @@ void geom_store::initialize_model(std::ifstream& infile)
 	//_____________________________________________________________________________________
 	
 	// Load the simulation data
-	simData = load_simulation_data(infile);
+	mesh_data.init(&geom_param); // Initialize the mesh data for points, lines and triangles
+
+	mesh_data.load_simulation_data(infile, boundary_width);
+	
+	//_____________________________________________________________________________________
+	// Initialize the time text data
+	text_timedata.init(&geom_param);
+
+	std::string str_time_t = "0000000000";
+	glm::vec2 str_time_loc(-1000.0f, 1000.0f);
 
 
-	// Create the geometry objects for the model
-
-
-
-
+	text_timedata.add_text(str_time_t, str_time_loc);
 
 
 	// Set the geometry
@@ -87,24 +94,17 @@ void geom_store::initialize_model(std::ifstream& infile)
 	op_window->set_simulation_time_ptr(&this->simulation_time_t);
 
 
-
-
-
-	this->step_i = 0;
 	this->simulation_time_t = 0;
 
-
-	op_window->is_update_dipl_scale = true;
-
 	//_______________________________________________________________________________________________
-
 
 	is_geometry_set = true;
 
 
 	// Set the geometry buffers
-	this->boundary_lines.set_buffer();
-
+	this->boundary_lines.create_buffer();
+	this->boundary_lines.update_buffer(0);
+	this->text_timedata.set_buffer();
 
 }
 
@@ -161,9 +161,8 @@ void geom_store::update_model_matrix()
 
 	// Update the model matrix
 	boundary_lines.update_opengl_uniforms(true, false, true);
-
-
-	op_window->is_update_dipl_scale = true;
+	mesh_data.update_opengl_uniforms(true, false, true);
+	text_timedata.update_opengl_uniforms(true, false, true);
 
 }
 
@@ -180,7 +179,8 @@ void geom_store::update_model_zoomfit()
 
 	// Update the zoom scale and pan translation
 	boundary_lines.update_opengl_uniforms(false, true, false);
-
+	mesh_data.update_opengl_uniforms(false, true, false);
+	text_timedata.update_opengl_uniforms(false, true, false);
 
 }
 
@@ -197,7 +197,8 @@ void geom_store::update_model_pan(glm::vec2& transl)
 
 	// Update the pan translation
 	boundary_lines.update_opengl_uniforms(false, true, false);
-
+	mesh_data.update_opengl_uniforms(false, true, false);
+	text_timedata.update_opengl_uniforms(false, true, false);
 
 }
 
@@ -212,7 +213,8 @@ void geom_store::update_model_zoom(double& z_scale)
 
 	// Update the Zoom
 	boundary_lines.update_opengl_uniforms(false, true, false);
-
+	mesh_data.update_opengl_uniforms(false, true, false);
+	text_timedata.update_opengl_uniforms(false, true, false);
 
 }
 
@@ -234,6 +236,8 @@ void geom_store::update_model_transperency(bool is_transparent)
 
 	// Update the model transparency
 	boundary_lines.update_opengl_uniforms(false, false, true);
+	mesh_data.update_opengl_uniforms(false, false, true);
+	text_timedata.update_opengl_uniforms(false, false, true);
 
 }
 
@@ -247,6 +251,9 @@ void geom_store::paint_geometry()
 	// Clean the back buffer and assign the new color to it
 	glClear(GL_COLOR_BUFFER_BIT);
 
+	// Option control change
+	option_cmap_change();
+
 	// Update the simulation
 	update_simulation();
 
@@ -256,157 +263,60 @@ void geom_store::paint_geometry()
 
 }
 
+void geom_store::option_cmap_change()
+{
+	// Options control change
+	if (op_window->is_color_theme_changed == true)
+	{
+		geom_param.CmapOption = op_window->selected_color_theme;
 
+		op_window->is_color_theme_changed = false;	
+
+		boundary_lines.update_opengl_uniforms(true, false, false);
+		mesh_data.update_opengl_uniforms(true, false, false);
+	}
+
+}
 
 void geom_store::update_simulation()
 {
+	// Return if the geometry is not set
+	if(mesh_data.simType == 0) // Static plot
+		return;	
+
 	auto currentTime = std::chrono::high_resolution_clock::now();
 	std::chrono::duration<float> deltaTime = currentTime - lastTime;
 	lastTime = currentTime;
 
 	accumulatedTime += deltaTime.count() * (1.0f / op_window->time_scale);
 
+
 	// Render at fixed time steps (e.g., 100 Hz)
-	while (accumulatedTime >= this->vm_solver.timeinterval)
+
+	while (mesh_data.step_i < mesh_data.totalFrames &&
+		accumulatedTime >= mesh_data.time_points[mesh_data.step_i])
 	{
-		simulation_time_t += this->vm_solver.timeinterval;
+		simulation_time_t = mesh_data.time_points[mesh_data.step_i];
 
+		mesh_data.update_buffer(mesh_data.step_i);
 
-		if (this->step_i >= vm_solver.total_data_count)
+		mesh_data.step_i++;
+
+		if (mesh_data.step_i >= mesh_data.totalFrames)
 		{
-			this->step_i = 0;
-			this->simulation_time_t = 0;
-
-			this->graph_mass_mx.reset_points();
-			this->graph_phase_portrait.reset_points();
-
+			mesh_data.step_i = 0;
+			accumulatedTime = 0.0f;
+			break;
 		}
 
-
-		const simresult_store& step = this->vm_solver.result_datas[this->step_i];
-		double scaled_displ_at_t = geom_param.get_remap(this->vm_solver.abs_max_displacement, -1.0 * this->vm_solver.abs_max_displacement,
-			1.0f, -1.0f, step.displacement);
-
-
-		// Update the geometry for the current step
-		double scaled_mass_size = (step.mval / this->vm_solver.max_mass);
-
-
-		model_mass.update_mass_displacement(0, glm::vec2(0.0, zero_disply + (op_window->displ_scale * scaled_displ_at_t)), scaled_mass_size);
-		model_spring.update_spring_displacement(0, glm::vec2(0.0, -800.0),
-			glm::vec2(0.0, zero_disply + (op_window->displ_scale * scaled_displ_at_t)));
-
-
-		// Show the mass vs displacement graph
-		if (op_window->is_show_massgraph == true)
+		if (op_window->is_show_time_text)
 		{
-			// Accumulate time for graph updates
-			this->graph_mass_mx.graph_update_time_accum += this->vm_solver.timeinterval;
+			std::string str_time_t = geom_param.format_time_string(simulation_time_t);
 
-			// Update the graph points
-			if (this->graph_mass_mx.graph_update_time_accum >= this->graph_mass_mx.graph_update_interval_time)
-			{		
-				// scale the graph points
-					double scaled_mass_intensity = geom_param.get_remap(this->vm_solver.max_mass, this->vm_solver.min_mass,
-			1.0f, 0.0f, step.mval);
+			glm::vec2 str_time_loc(-1000.0f, 1000.0f);
 
-				graph_mass_mx.update_head_point(glm::vec2(-400.0 - (op_window->velo_scale * this->vm_solver.max_velocity_ratio) - (op_window->displ_scale * scaled_mass_intensity),
-					zero_disply + (op_window->displ_scale * scaled_displ_at_t)), scaled_mass_intensity);
-
-				// Reset the accumulator after updating the graph
-				this->graph_mass_mx.graph_update_time_accum = 0.0f;
-			}
+			text_timedata.update_text(str_time_t, str_time_loc);
 		}
-		
-		// Show the phase portrait graph
-		if (op_window->is_show_phaseportrait == true)
-		{
-			// Accumulate time for graph updates
-			this->graph_phase_portrait.graph_update_time_accum += this->vm_solver.timeinterval;
-
-
-			// Update the graph points
-			if (this->graph_phase_portrait.graph_update_time_accum >= this->graph_phase_portrait.graph_update_interval_time)
-			{
-				// scale the graph points
-				double scaled_velo_at_t = geom_param.get_remap(this->vm_solver.abs_max_velocity, -1.0 * this->vm_solver.abs_max_velocity,
-					1.0f, -1.0f, step.velocity);
-
-				// Phase amplitude depends on the velocity (convert it 0 to 1)
-				double phase_ampl = std::abs(scaled_velo_at_t);
-		
-				graph_phase_portrait.update_head_point(glm::vec2(0.0 + (op_window->velo_scale * scaled_velo_at_t),
-					zero_disply + (op_window->displ_scale * scaled_displ_at_t)), phase_ampl);
-
-				// Reset the accumulator after updating the graph
-				this->graph_phase_portrait.graph_update_time_accum = 0.0f;
-			}
-		}
-
-		if (op_window->is_update_graph_length_factor == true)
-		{
-			// Update the graph length factor
-
-			this->graph_mass_mx.adjust_graph_length(op_window->graph_mass_length_factor);
-
-			this->graph_phase_portrait.adjust_graph_length(op_window->graph_phase_length_factor);
-
-			// End the event
-			op_window->is_update_graph_length_factor = false;
-		}
-
-		
-		if (op_window->is_update_dipl_scale == true)
-		{
-			// update the displacement scale for the envelope lines
-
-			if (op_window->is_show_text == true)
-			{
-
-				// update the maximum and minimum displacment line
-				max_displ_line.update_mesh_point(0, 0.0, zero_disply + (this->vm_solver.max_displacement_ratio * op_window->displ_scale));
-				max_displ_line.update_mesh_point(1, -400.0 - (op_window->velo_scale * this->vm_solver.max_velocity_ratio),
-					zero_disply + (this->vm_solver.max_displacement_ratio * op_window->displ_scale));
-
-				min_displ_line.update_mesh_point(0, 0.0, zero_disply + (this->vm_solver.min_displacement_ratio * op_window->displ_scale));
-				min_displ_line.update_mesh_point(1, -400.0 - (op_window->velo_scale * this->vm_solver.max_velocity_ratio),
-					zero_disply + (this->vm_solver.min_displacement_ratio * op_window->displ_scale));
-
-				max_displ_line.update_mesh_buffer();
-				min_displ_line.update_mesh_buffer();
-
-
-				// string max, min
-				std::string str_max_displ = geom_param.format_displacement_string(this->vm_solver.max_displacement);
-				std::string str_min_displ = geom_param.format_displacement_string(this->vm_solver.min_displacement);
-
-				glm::vec2 str_max_displ_loc = glm::vec2(-400.0 - (op_window->velo_scale * this->vm_solver.max_velocity_ratio), 
-					zero_disply + (this->vm_solver.max_displacement_ratio * op_window->displ_scale));
-				glm::vec2 str_min_displ_loc = glm::vec2(-400.0 - (op_window->velo_scale * this->vm_solver.max_velocity_ratio), 
-					zero_disply + (this->vm_solver.min_displacement_ratio * op_window->displ_scale));
-
-				txt_max_displ.update_text(str_max_displ, str_max_displ_loc);
-				txt_min_displ.update_text(str_min_displ, str_min_displ_loc);
-
-				txt_max_displ.update_buffer();
-				txt_min_displ.update_buffer();
-
-				// End the event
-				op_window->is_update_dipl_scale = false;
-			}
-		}
-
-		if (op_window->is_show_displ_at_t == true)
-		{
-			// Get the text displacement time t
-			std::string str_displ = geom_param.format_displacement_string(step.displacement);
-			glm::vec2 str_displ_loc = glm::vec2(200.0, zero_disply + (op_window->displ_scale * scaled_displ_at_t));
-
-			txt_displ_at_t.update_text(str_displ, str_displ_loc);
-		}
-
-		this->step_i++;  // Move to the next time step in the block
-		accumulatedTime -= this->vm_solver.timeinterval;
 	}
 }
 
@@ -421,7 +331,7 @@ void geom_store::paint_model()
 	if (op_window->is_show_boundarybox == true)
 	{
 		// Paint the boundaries
-		boundary_lines.paint_static_mesh();
+		boundary_lines.paint_mesh(false, true, true);
 
 	}
 	
@@ -432,38 +342,11 @@ void geom_store::paint_model()
 		text_timedata.paint_dynamic_texts();
 
 	}
+		
 
-	if (op_window->is_show_displ_at_t == true)
-	{
-		// Paint the displacement at time t
-		txt_displ_at_t.paint_dynamic_texts();
-
-	}
-	
-
-	//_______________________________________________
-	glLineWidth(2.1f);
-
-	if (op_window->is_show_massgraph == true)
-	{
-		// Paint the mass at time t graph
-		graph_mass_mx.paint_static_graph();
-
-	}
-
-	if (op_window->is_show_phaseportrait == true)
-	{
-		// Paint the phase portrait at time t graph
-		graph_phase_portrait.paint_static_graph();
-
-	}
-
-	// Paint the model
-	model_spring.paint_spring();
-
-	model_fixedends.paint_fixed_end();
-
-	model_mass.paint_pointmass();
+	// Paint the mesh
+	mesh_data.paint_mesh(op_window->is_show_mesh_tris, 
+		op_window->is_show_mesh_boundary, op_window->is_show_mesh_points);
 
 
 

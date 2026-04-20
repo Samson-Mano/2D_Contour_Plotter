@@ -10,13 +10,19 @@ void mesh_data_store::init(geom_parameters* geom_param_ptr)
 {
 	this->geom_param_ptr = geom_param_ptr;
 
+	this->totalFrames = 0; // Total number of frames in the simulation
+	this->time_points.clear(); // Time points for each frame
+	this->step_i = 0; // Current step index
+
 }
 
 
 
 void mesh_data_store::load_simulation_data(std::ifstream& infile, float boundary_width)
 {
-	
+	// Temporary variable to store the simulation data
+	simulation_data sim_data;
+
 	infile.read(reinterpret_cast<char*>(&sim_data.gridX), sizeof(int));
 	infile.read(reinterpret_cast<char*>(&sim_data.gridY), sizeof(int));
 	infile.read(reinterpret_cast<char*>(&sim_data.totalFrames), sizeof(int));
@@ -25,6 +31,11 @@ void mesh_data_store::load_simulation_data(std::ifstream& infile, float boundary
 	sim_data.frames.resize(sim_data.totalFrames);
 
 	int gridSize = sim_data.gridX * sim_data.gridY;
+
+	// Store the total frames
+	simType = sim_data.simType;
+	totalFrames = sim_data.totalFrames;	
+	time_points.clear();
 
 	for (int i = 0; i < sim_data.totalFrames; ++i)
 	{
@@ -37,16 +48,19 @@ void mesh_data_store::load_simulation_data(std::ifstream& infile, float boundary
 		frame.z_values.resize(gridSize);
 		infile.read(reinterpret_cast<char*>(frame.z_values.data()),
 			sizeof(uint16_t) * gridSize);
+
+		// Store the time points
+		time_points.push_back(frame.time);
+
 	}
 
 	// Generate points based on the grid dimensions and boundary width
 	float boundary_width_buffered = boundary_width * 0.9f; // Add some buffer to ensure points are within the boundary
 
-	mesh_data.init(geom_param_ptr, true, true, true); // Initialize the mesh data for points, lines and triangles
+	mesh_data.init(geom_param_ptr); // Initialize the mesh data for points, lines and triangles
 
 
 	int pt_id = 0; // give id to the points
-	this->points.clear(); // Clear any existing points
 
 	for (int j = 0; j < sim_data.gridY; ++j)
 	{
@@ -59,23 +73,36 @@ void mesh_data_store::load_simulation_data(std::ifstream& infile, float boundary
 			x = x * boundary_width_buffered - (boundary_width_buffered / 2.0f);
 			y = y * boundary_width_buffered - (boundary_width_buffered / 2.0f);
 
-			//// Read the z values for this point across all frames
-			//std::vector<float> z_values(sim_data.totalFrames);
-			//for (int frame_idx = 0; frame_idx < sim_data.totalFrames; ++frame_idx)
-			//{
-			//	int z_index = j * sim_data.gridX + i; // Calculate the index for z_values
-			//	z_values[frame_idx] = static_cast<float>(sim_data.frames[frame_idx].z_values[z_index]);
-			//}
+			// Read the z values for this point across all frames
+			std::vector<float> z_values(sim_data.totalFrames);
+			for (int frame_idx = 0; frame_idx < sim_data.totalFrames; ++frame_idx)
+			{
+				int z_index = j * sim_data.gridX + i; // Calculate the index for z_values
 
-			this->points.push_back({pt_id, x, y });
+				// Normalize the z value to the range [0, 1] based on z_min and z_max for the current frame
+				float z_min = sim_data.frames[frame_idx].z_min;
+				float z_max = sim_data.frames[frame_idx].z_max;
+				float z_value = static_cast<float>(sim_data.frames[frame_idx].z_values[z_index]) / 65535.0f;
+
+				//if (z_max > z_min) // Avoid division by zero
+				//{
+				//	z_value = (z_value - z_min) / (z_max - z_min); // Normalize to [0, 1]
+				//}
+				//else
+				//{
+				//	z_value = 0.0f; // If z_max and z_min are the same, set z_value to 0
+				//}
+
+				z_values[frame_idx] = z_value;
+			}
+
+			mesh_data.add_mesh_point(pt_id, x, y, z_values); // Add the point with normalized z values
 			++pt_id;
 		}
 	}
 
-	// Add the grid wireframe edges and grid triangles
-	this->wireframe_edges.clear(); // Clear any existing edges
-	this->triangles.clear(); // Clear any existing triangles
 
+	// Add the grid wireframe edges and grid triangles
 	for (int j = 0; j < sim_data.gridY - 1; ++j)
 	{
 		for (int i = 0; i < sim_data.gridX - 1; ++i)
@@ -92,23 +119,57 @@ void mesh_data_store::load_simulation_data(std::ifstream& infile, float boundary
 			int i3 = i2 + 1;
 
 			// Triangle 1 (CCW order)
-			triangles.push_back({ i0, i1, i2 });
+			mesh_data.add_mesh_tris(i0, i1, i2);
 
 			// Triangle 2 (CCW order)
-			triangles.push_back({ i1, i3, i2 });
+			mesh_data.add_mesh_tris(i1, i3, i2);
 
 			// Add the left end edges (to avoid duplicates)
-			if (i == 0) { wireframe_edges.push_back({ i0, i2 }); } // Left edge
-			if (j == 0) { wireframe_edges.push_back({ i0, i1 }); } // Bottom edge
+			if (i == 0) { mesh_data.add_mesh_wireframe(i0, i2); } // Left edge
+			if (j == 0) { mesh_data.add_mesh_wireframe(i0, i1); } // Bottom edge
 
 
-			wireframe_edges.push_back({ i1, i3 }); // Triangle 2 edge 1
-			wireframe_edges.push_back({ i3, i2 }); // Triangle 2 edge 2
-			wireframe_edges.push_back({ i2, i1 }); // Triangle 2 edge 3
+			mesh_data.add_mesh_wireframe(i1, i3); // Triangle 2 edge 1
+			mesh_data.add_mesh_wireframe(i3, i2); // Triangle 2 edge 2
+			mesh_data.add_mesh_wireframe(i2, i1); // Triangle 2 edge 3
 
 		}
 	}
 
 
+	// Create the buffers for the mesh data
+	mesh_data.create_buffer();
+
+	this->step_i = 0; // Reset the current step index to 0 after loading the data
 
 }
+
+
+
+void mesh_data_store::paint_mesh(bool is_showmesh, bool is_showwireframe, bool is_showpoint)
+{
+	// Paint the mesh
+	mesh_data.paint_mesh(is_showmesh, is_showwireframe, is_showpoint);
+}
+
+
+
+void mesh_data_store::update_buffer(int timestep_i)
+{
+	// Update the buffer for the current time step
+	mesh_data.update_buffer(timestep_i);
+}	
+
+
+
+void mesh_data_store::update_opengl_uniforms(bool set_modelmatrix, bool set_viewmatrix, bool set_transparency)
+{
+	// Update the openGl uniform matrices
+	mesh_data.update_opengl_uniforms(set_modelmatrix, set_viewmatrix, set_transparency);	
+
+}
+
+
+
+
+

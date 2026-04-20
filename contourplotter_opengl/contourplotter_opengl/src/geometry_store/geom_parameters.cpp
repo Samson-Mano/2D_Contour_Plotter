@@ -5,10 +5,6 @@ geom_parameters::geom_parameters()
 	// Empty Constructor
 }
 
-geom_parameters::~geom_parameters()
-{
-	// Empty Destructor
-}
 
 void geom_parameters::init()
 {
@@ -171,7 +167,7 @@ void geom_parameters::copyNodenumberlistToCharArray(const std::vector<int>& vec,
 
 
 // Helper function to format the displacement with a maximum length of 8 characters
-std::string geom_parameters::format_displacement_string(double value)
+std::string geom_parameters::format_time_string(double value)
 {
 	std::stringstream ss;
 	std::string result;

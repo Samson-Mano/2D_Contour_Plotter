@@ -149,6 +149,7 @@
     <ClCompile Include="src\geometry_store\fe_objects\mesh_data_store.cpp" />
     <ClCompile Include="src\geometry_store\geometry_buffers\font_atlas.cpp" />
     <ClCompile Include="src\geometry_store\geometry_buffers\gBuffers.cpp" />
+    <ClCompile Include="src\geometry_store\geometry_buffers\gBuffersTxt.cpp" />
     <ClCompile Include="src\geometry_store\geometry_buffers\IndexBuffer.cpp" />
     <ClCompile Include="src\geometry_store\geometry_buffers\Shader.cpp" />
     <ClCompile Include="src\geometry_store\geometry_buffers\ShaderLibrary.cpp" />
@@ -183,6 +184,7 @@
     <ClInclude Include="src\geometry_store\fe_objects\mesh_data_store.h" />
     <ClInclude Include="src\geometry_store\geometry_buffers\font_atlas.h" />
     <ClInclude Include="src\geometry_store\geometry_buffers\gBuffers.h" />
+    <ClInclude Include="src\geometry_store\geometry_buffers\gBuffersTxt.h" />
     <ClInclude Include="src\geometry_store\geometry_buffers\IndexBuffer.h" />
     <ClInclude Include="src\geometry_store\geometry_buffers\Shader.h" />
     <ClInclude Include="src\geometry_store\geometry_buffers\ShaderLibrary.h" />

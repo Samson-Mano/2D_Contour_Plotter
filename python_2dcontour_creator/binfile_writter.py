@@ -13,12 +13,12 @@ def wave_func(x, y, t):
 
 
 # 1. Setup Simulation Parameters
-time_points = np.arange(0.0, 1.0, 0.1) # 10 steps for testing
-grid_res = 100
+time_points = np.arange(0.0, 5.0, 0.01) # 10 steps for testing
+grid_res = 512
 x = np.linspace(-10, 10, grid_res)
 y = np.linspace(-10, 10, grid_res)
 X, Y = np.meshgrid(x, y)
-simtype = 0 # 0 = static, 1 = dynamic
+simtype = 1 # 0 = static, 1 = dynamic
 
 # 2. Binary Export (Using your optimized plan)
 # Format: 

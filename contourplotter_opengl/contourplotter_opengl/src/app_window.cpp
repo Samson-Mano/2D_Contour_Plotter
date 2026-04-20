@@ -33,7 +33,7 @@ void app_window::init()
 	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 
 	// Create a window
-	window = glfwCreateWindow(window_width, window_height, "VM Spatial Varrying Spring Mass - Real Time Sim ", nullptr, nullptr);
+	window = glfwCreateWindow(window_width, window_height, "2D Contour Plotter", nullptr, nullptr);
 
 	if (!window)
 	{
@@ -151,9 +151,9 @@ void app_window::app_render()
 	glEnable(GL_MULTISAMPLE);
 	glEnable(GL_LINE_SMOOTH);
 
-	glEnable(GL_DEPTH_TEST); // Enable depth testing
+	// glEnable(GL_DEPTH_TEST); // Enable depth testing
 	// glDisable(GL_DEPTH_TEST);
-  	glFrontFace(GL_CCW);  // Use counter clockwise winding
+  	// glFrontFace(GL_CCW);  // Use counter clockwise winding
 
 	// glBlendEquation(GL_MAX);
 

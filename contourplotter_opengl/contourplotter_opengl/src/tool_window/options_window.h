@@ -11,10 +11,10 @@ public:
 	double time_scale = 1.0;
 
 	bool is_show_time_text = true;
-	bool is_show_mesh_boundary = true;
-	bool is_show_mesh_points = true;
+	bool is_show_mesh_boundary = false;
+	bool is_show_mesh_points = false;
 	bool is_show_mesh_tris = true;
-	bool is_show_boundarybox = false;
+	bool is_show_boundarybox = true;
 	
 	int selected_color_theme = 1;
 	bool is_color_theme_changed = false;

@@ -105,6 +105,9 @@
     <ClCompile Include="src\geometry_store\geometry_buffers\ShaderLibrary.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="src\geometry_store\geometry_buffers\gBuffersTxt.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="resources\ImGui\imconfig.h">
@@ -201,6 +204,9 @@
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="src\geometry_store\geometry_buffers\ShaderLibrary.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\geometry_store\geometry_buffers\gBuffersTxt.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

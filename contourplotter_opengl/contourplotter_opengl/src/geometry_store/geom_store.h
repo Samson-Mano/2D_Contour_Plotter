@@ -9,7 +9,9 @@
 // Tool Windows
 #include "../tool_window/options_window.h"
 
-//// FE Objects
+// FE Objects
+#include "fe_objects/mesh_data_store.h"	
+
 //#include "fe_objects/elementfixedend_list_store.h"
 //#include "fe_objects/elementmass_list_store.h"
 //#include "fe_objects/elementspring_list_store.h"
@@ -64,7 +66,7 @@ private:
 	double accumulatedTime = 0.0f;
 	
 	double simulation_time_t = 0.0; // total simualation time
-	int step_i = 0;
+	//int step_i = 0;
 
 
 	// Window pointers
@@ -73,13 +75,14 @@ private:
 	// Other geometry objects
 	obj_mesh_data boundary_lines;
 
-
+	// Main mesh data for the model
+	mesh_data_store mesh_data;
 
 	// Text data
 	text_list_store text_timedata;
 
-	SimulationData load_simulation_data(std::ifstream& infile);
 
+	void option_cmap_change(); // Control the option change
 	void update_simulation(); // Update the simuation
 	void paint_model(); // Paint the model
 

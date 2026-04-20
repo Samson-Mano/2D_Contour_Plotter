@@ -155,13 +155,13 @@ void obj_mesh_data::clear_mesh()
 }
 
 
-void obj_mesh_data::paint_mesh()
+void obj_mesh_data::paint_mesh(bool is_showmesh, bool is_showwireframe, bool is_showpoint)
 {
 	// Paint the mesh
 	mesh_shader.Bind();
 	mesh_buffer.Bind();
 
-	if (tri_count != 0)
+	if (tri_count != 0 && is_showmesh == true)
 	{
 		// Paint the triangles
 		ibo_tris.Bind();
@@ -169,7 +169,7 @@ void obj_mesh_data::paint_mesh()
 		ibo_tris.UnBind();
 	}
 
-	if (line_count != 0)
+	if (line_count != 0 && is_showwireframe == true)
 	{
 		// Paint the wireframe
 		ibo_lines.Bind();
@@ -177,7 +177,7 @@ void obj_mesh_data::paint_mesh()
 		ibo_lines.UnBind();
 	}
 
-	if (point_count != 0)
+	if (point_count != 0 && is_showpoint == true)
 	{
 		// Paint the points
 		ibo_points.Bind();
@@ -205,6 +205,11 @@ void obj_mesh_data::update_opengl_uniforms(bool set_modelmatrix, bool set_viewma
 		// set the model matrix
 		mesh_shader.setUniform("modelMatrix", geom_param_ptr->modelMatrix, false);
 
+		// set the model matrix
+		mesh_shader.setUniform("projectionMatrix", geom_param_ptr->projectionMatrix, false);
+
+		// Update the Cmap options
+		mesh_shader.setUniform("CmapOption", geom_param_ptr->CmapOption);
 	}
 
 	if (set_viewmatrix == true)

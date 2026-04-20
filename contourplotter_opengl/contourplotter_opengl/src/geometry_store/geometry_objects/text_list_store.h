@@ -2,7 +2,7 @@
 #include <iostream>
 #include <glm/vec2.hpp>
 #include <glm/vec3.hpp>
-#include "../geometry_buffers/gBuffers.h"
+#include "../geometry_buffers/gBuffersTxt.h"
 #include "../geometry_buffers/font_atlas.h"
 #include "../geom_parameters.h"
 
@@ -44,7 +44,7 @@ public:
 private:
 	geom_parameters* geom_param_ptr = nullptr;
 
-	gBuffers text_buffer;
+	gBuffersTxt text_buffer;
 	Shader text_shader;
 
 	void get_label_vertex_buffer(text_store& txt, float* text_vertices, unsigned int& text_v_index);

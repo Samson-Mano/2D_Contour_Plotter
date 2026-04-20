@@ -58,7 +58,7 @@ public:
 	void update_buffer(int timestep_i);
 	void create_buffer();
 	void clear_mesh();
-	void paint_mesh();
+	void paint_mesh(bool is_showmesh, bool is_showwireframe, bool is_showpoint);
 
 
 	void update_opengl_uniforms(bool set_modelmatrix, bool set_viewmatrix, bool set_transparency);

@@ -85,6 +85,8 @@ public:
 	double normalized_defl_scale = 0.0f; // Value of deflection scale
 	double defl_scale = 0.0f; // Value of deflection scale
 
+	// Contour control
+	int CmapOption = 1; // Color map option for contour plot (default = Jet)
 
 	// Screen transformations
 	glm::mat4 viewMatrix = glm::mat4(1.0f); // View matrix
@@ -99,14 +101,14 @@ public:
 	geom_color_theme geom_colors;
 
 	geom_parameters();
-	~geom_parameters();
+	~geom_parameters() = default;
 	void init();
 
 	static bool isPointInsideRectangle(const glm::vec2& rect_cpt1, const glm::vec2& rect_cpt2, const glm::vec2& pt);
 
 	static void copyNodenumberlistToCharArray(const std::vector<int>& vec, char* charArray, size_t bufferSize);
 
-	static std::string format_displacement_string(double value);
+	static std::string format_time_string(double value);
 
 	static glm::vec3 get_standard_color(int color_index);
 
